@@ -17,9 +17,13 @@ pipeline {
         stage('Terraform - Create EC2') {
             steps {
                 dir('terraform') {
-                    sh 'terraform init'
+                    /*sh 'terraform init'
                     sh 'terraform apply -auto-approve'
                     // Ensure your terraform output is exactly "ec2_public_ip"
+                    sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'*/
+                    sh 'export TF_PLUGIN_MAGIC_COOKIE=1' 
+                    sh 'terraform init'
+                    sh 'terraform apply -auto-approve'
                     sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'
                 }
             }
