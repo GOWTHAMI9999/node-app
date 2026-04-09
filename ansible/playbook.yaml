@@ -1,0 +1,43 @@
+- name: Setup ec2 server for node app
+  hosts: app_server
+  become: yes
+  
+  tasks:
+    - name: update apt packages
+      apt:
+        update_cache: yes
+    - name: install docker
+      apt:
+        name: docker.io
+        state: present
+    - name: start and enable docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+    - name: add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+    - name: install kubectl
+      shell: |
+        curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        mv kubectl /usr/local/bin/kubectl
+    - name: install minikube
+      shell: |
+        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        install minikube-linux-amd64 /usr/local/bin/minikube
+    - name: verify if docker installed  
+      command: docker --version
+      register: docker_version
+    - name: print docker version
+      debug:
+        msg: "{{ docker_version.stdout}}"
+    - name: verify kubectl installed
+      command: kubectl version --client
+      register: kubectl_version
+    - name: print kubectl version
+      debug: 
+        msg: "{{ kubectl_version.stdout}}"
