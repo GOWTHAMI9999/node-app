@@ -8,7 +8,7 @@ variable "instance_type" {
 }
 variable "key_name" {
     description = "saikey"
-    default = "sai"
+    default = "saikey"
 }
 variable "ami_id" {
     description = "ubuntu 22.04 AMI"
