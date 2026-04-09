@@ -5,6 +5,9 @@ provider "aws" {
 resource "aws_security_group" "node_app_sg" {
   name = "node-app-sg"
   description = "allow ssh,http, app port"
+  lifecycle {
+    create_before_destroy = true
+  }
 
 ingress {
     from_port = 22
