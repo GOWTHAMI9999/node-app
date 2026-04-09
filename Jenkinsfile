@@ -20,15 +20,25 @@ pipeline {
                     string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
-                    dir('terraform') {
-                        sh '''
-                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                            terraform init
-                            terraform apply -auto-approve
-                            terraform output -raw ec2_public_ip > ../ec2_ip.txt
-                        '''
-                    }
+                    sh '''
+                        echo "=== Checking workspace files ==="
+                        ls -la
+                        echo "=== Moving into terraform folder ==="
+                        cd terraform
+                        echo "=== Terraform files ==="
+                        ls -la
+                        echo "=== Setting AWS credentials ==="
+                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                        echo "=== Running Terraform Init ==="
+                        terraform init
+                        echo "=== Running Terraform Apply ==="
+                        terraform apply -auto-approve
+                        echo "=== Getting EC2 IP ==="
+                        terraform output -raw ec2_public_ip > ../ec2_ip.txt
+                        echo "=== EC2 IP is ==="
+                        cat ../ec2_ip.txt
+                    '''
                 }
             }
         }
@@ -36,9 +46,13 @@ pipeline {
         stage('Ansible - Setup Server') {
             steps {
                 sh '''
+                    echo "=== Reading EC2 IP ==="
                     EC2_IP=$(cat ec2_ip.txt)
+                    echo "EC2 IP: $EC2_IP"
                     echo "[app_server]" > ansible/inventory.ini
                     echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
+                    echo "=== Inventory file ==="
+                    cat ansible/inventory.ini
                     export ANSIBLE_HOST_KEY_CHECKING=False
                     ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
                 '''
