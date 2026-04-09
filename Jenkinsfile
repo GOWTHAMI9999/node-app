@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        // Updated to match your deployment.yaml image name
         DOCKER_IMAGE = "gowthamireddy7/sai-node-app"
         DOCKER_TAG = "latest"
     }
 
     stages {
+
         stage('Clone Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/gowthami9999/node-app.git'
@@ -17,19 +17,15 @@ pipeline {
         stage('Terraform - Create EC2') {
             steps {
                 withCredentials([
-            string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-            string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-            ]) {
-                dir('terraform') {
-                    /*sh 'terraform init'
-                    sh 'terraform apply -auto-approve'
-                    // Ensure your terraform output is exactly "ec2_public_ip"
-                    sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'*/
-                    sh 'export TF_PLUGIN_MAGIC_COOKIE=1' 
-                    sh 'terraform init'
-                    sh 'terraform apply -auto-approve'
-                    sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'
-                }
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    dir('terraform') {
+                        sh 'terraform init'
+                        sh 'terraform apply -auto-approve'
+                        sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'
+                    }
+                }  // ← this was missing!
             }
         }
 
@@ -38,11 +34,7 @@ pipeline {
                 sh '''
                   EC2_IP=$(cat ec2_ip.txt)
                   echo "[app_server]" > ansible/inventory.ini
-                  
-                  # Updated path to the saikey.pem we just moved
                   echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
-
-                  # Run playbook without manual intervention
                   export ANSIBLE_HOST_KEY_CHECKING=False
                   ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
                 '''
@@ -57,9 +49,9 @@ pipeline {
 
         stage('Push to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', 
-                                                 usernameVariable: 'USER', 
-                                                 passwordVariable: 'PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS')]) {
                     sh "docker login -u $USER -p $PASS"
                     sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                 }
@@ -68,12 +60,12 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                // Assuming your k8s folder is in the root of the repo
                 sh 'kubectl apply -f k8s/deployment.yaml'
                 sh 'kubectl apply -f k8s/service.yaml'
                 sh 'kubectl rollout restart deployment/node-app'
             }
         }
+
     }
 
     post {
