@@ -21,22 +21,26 @@ pipeline {
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     dir('terraform') {
-                        sh 'terraform init'
-                        sh 'terraform apply -auto-approve'
-                        sh 'terraform output -raw ec2_public_ip > ../ec2_ip.txt'
+                        sh '''
+                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                            terraform init
+                            terraform apply -auto-approve
+                            terraform output -raw ec2_public_ip > ../ec2_ip.txt
+                        '''
                     }
-                }  // ← this was missing!
+                }
             }
         }
 
         stage('Ansible - Setup Server') {
             steps {
                 sh '''
-                  EC2_IP=$(cat ec2_ip.txt)
-                  echo "[app_server]" > ansible/inventory.ini
-                  echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
-                  export ANSIBLE_HOST_KEY_CHECKING=False
-                  ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+                    EC2_IP=$(cat ec2_ip.txt)
+                    echo "[app_server]" > ansible/inventory.ini
+                    echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
+                    export ANSIBLE_HOST_KEY_CHECKING=False
+                    ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
                 '''
             }
         }
