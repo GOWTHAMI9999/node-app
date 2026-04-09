@@ -54,7 +54,7 @@ pipeline {
                     echo "=== Inventory file ==="
                     cat ansible/inventory.ini
                     export ANSIBLE_HOST_KEY_CHECKING=False
-                    ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+                    ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml
                 '''
             }
         }
