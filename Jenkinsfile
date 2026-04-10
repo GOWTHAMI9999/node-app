@@ -54,7 +54,15 @@ pipeline {
                     echo "=== Inventory file ==="
                     cat ansible/inventory.ini
                     export ANSIBLE_HOST_KEY_CHECKING=False
+                    echo "=== Waiting 90 seconds for EC2 to fully boot ==="
+                    sleep 90
+                    echo "=== Running Ansible ==="
                     ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml
+                        --timeout=60 \
+                        --retries=3
+                    
+                    
+                       
                 '''
             }
         }
