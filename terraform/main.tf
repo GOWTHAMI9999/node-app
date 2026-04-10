@@ -41,6 +41,8 @@ resource "aws_instance" "node_app_server" {
     instance_type = var.instance_type
     key_name = var.key_name
     vpc_security_group_ids = [aws_security_group.node_app_sg.id]
+    associate_public_ip_address = true    # ← ADD THIS LINE
+
     tags = {
         Name = "node-app-server"
     }
