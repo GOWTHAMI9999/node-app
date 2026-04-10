@@ -58,7 +58,7 @@ pipeline {
                     sleep 90
                     echo "=== Running Ansible ==="
                     ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml
-                        --timeout=60 \
+                        
                         
                     
                     
