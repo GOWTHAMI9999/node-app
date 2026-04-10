@@ -1,0 +1,8 @@
+terraform/
+ansible/
+.git/
+*.pem
+k8s/
+.terraform/
+*.tfstate
+*.tfvars
