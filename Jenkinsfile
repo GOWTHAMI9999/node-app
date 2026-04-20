@@ -50,7 +50,7 @@ pipeline {
                     EC2_IP=$(cat ec2_ip.txt)
                     echo "EC2 IP: $EC2_IP"
                     echo "[app_server]" > ansible/inventory.ini
-                    echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
+                    echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=$SSH_KEY" >> ansible/inventory.ini
                     echo "=== Inventory file ==="
                     cat ansible/inventory.ini
                     export ANSIBLE_HOST_KEY_CHECKING=False
