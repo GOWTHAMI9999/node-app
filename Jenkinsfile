@@ -24,9 +24,12 @@ pipeline {
                         cd terraform
                         export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                         export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+
                         terraform init
                         terraform apply -auto-approve
+
                         terraform output -raw ec2_public_ip > ../ec2_ip.txt
+
                         echo "=== EC2 IP ==="
                         cat ../ec2_ip.txt
                     '''
@@ -45,13 +48,17 @@ pipeline {
                 ]) {
                     sh '''
                         EC2_IP=$(cat ec2_ip.txt)
+
                         echo "EC2 IP: $EC2_IP"
-                        echo "SSH KEY PATH: $SSH_KEY"
-                        echo "SSH USER: $SSH_USER"
                         echo "[app_server]" > ansible/inventory.ini
                         echo "$EC2_IP ansible_user=$SSH_USER" >> ansible/inventory.ini
+
                         export ANSIBLE_HOST_KEY_CHECKING=False
+
+                        echo "=== Waiting for EC2 ==="
                         sleep 90
+
+                        echo "=== Running Ansible ==="
                         ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml --private-key $SSH_KEY
                     '''
                 }
@@ -67,12 +74,18 @@ pipeline {
 
         stage('Push to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS')]) {
-                    sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    sh "docker push ${DOCKER_IMAGE}:latest"
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo $PASS | docker login -u $USER --password-stdin
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+                    '''
                 }
             }
         }
@@ -80,21 +93,22 @@ pipeline {
         stage('Update Manifest') {
             steps {
                 withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-creds',
-                        usernameVariable: 'GIT_USER',
-                        passwordVariable: 'GIT_PASS'
-                    )
+                    string(credentialsId: 'github-token', variable: 'GIT_TOKEN')
                 ]) {
                     sh '''
                         echo "=== Updating image tag ==="
+
                         sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
+
                         git config user.email "jenkins@pipeline.com"
                         git config user.name "Jenkins"
+
                         git add deployment.yaml
-                        git commit -m "Update image tag to ${BUILD_NUMBER}" || echo "No changes to commit"
+                        git commit -m "Update image tag to ${BUILD_NUMBER}" || echo "No changes"
+
                         echo "=== Pushing to GitHub ==="
-                        git push https://$GIT_USER:$GIT_PASS@github.com/gowthami9999/node-app.git main
+
+                        git push https://$GIT_TOKEN@github.com/gowthami9999/node-app.git HEAD:main
                     '''
                 }
             }
@@ -110,8 +124,9 @@ pipeline {
                 ]) {
                     sh '''
                         EC2_IP=$(cat ec2_ip.txt)
+
                         ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$EC2_IP \
-                            "kubectl apply -f /home/ubuntu/argocd-app.yaml"
+                        "kubectl apply -f /home/ubuntu/argocd-app.yaml"
                     '''
                 }
             }
