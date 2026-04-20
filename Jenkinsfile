@@ -88,7 +88,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "=== Updating image tag ==="
-                        sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g"deployment.yaml
+                        sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
                         git config user.email "jenkins@pipeline.com"
                         git config user.name "Jenkins"
                         git add k8s/deployment.yaml
