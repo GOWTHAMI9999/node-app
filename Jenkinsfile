@@ -45,6 +45,7 @@ pipeline {
 
         stage('Ansible - Setup Server') {
             steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'SSH_KEY')]) {
                 sh '''
                     echo "=== Reading EC2 IP ==="
                     EC2_IP=$(cat ec2_ip.txt)
@@ -65,6 +66,8 @@ pipeline {
                        
                 '''
             }
+            
+        }
         }
 
         stage('Build Docker Image') {
