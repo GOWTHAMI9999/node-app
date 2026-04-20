@@ -85,7 +85,7 @@ pipeline {
                     git config user.name "Jenkins"
                     git add deployment.yaml
                     git commit -m "Update image tag to ${BUILD_NUMBER}"
-                    git push https://<GITHUB-TOKEN>@github.com/gowthami9999/node-app.git main
+                    git push https://$GIT_USER:$GIT_PASS@github.com/gowthami9999/node-app.git main
                 """
             }
         }
