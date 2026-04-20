@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "gowthamireddy7/sai-node-app"
-        DOCKER_TAG = "latest"
+        DOCKER_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -21,22 +21,13 @@ pipeline {
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     sh '''
-                        echo "=== Checking workspace files ==="
-                        ls -la
-                        echo "=== Moving into terraform folder ==="
                         cd terraform
-                        echo "=== Terraform files ==="
-                        ls -la
-                        echo "=== Setting AWS credentials ==="
                         export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                         export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        echo "=== Running Terraform Init ==="
                         terraform init
-                        echo "=== Running Terraform Apply ==="
                         terraform apply -auto-approve
-                        echo "=== Getting EC2 IP ==="
                         terraform output -raw ec2_public_ip > ../ec2_ip.txt
-                        echo "=== EC2 IP is ==="
+                        echo "=== EC2 IP ==="
                         cat ../ec2_ip.txt
                     '''
                 }
@@ -45,34 +36,22 @@ pipeline {
 
         stage('Ansible - Setup Server') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'SSH_KEY')]) {
                 sh '''
-                    echo "=== Reading EC2 IP ==="
                     EC2_IP=$(cat ec2_ip.txt)
                     echo "EC2 IP: $EC2_IP"
                     echo "[app_server]" > ansible/inventory.ini
-                    echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=$SSH_KEY" >> ansible/inventory.ini
-                    echo "=== Inventory file ==="
-                    cat ansible/inventory.ini
+                    echo "$EC2_IP ansible_user=ubuntu ansible_ssh_private_key_file=/var/lib/jenkins/.ssh/saikey.pem" >> ansible/inventory.ini
                     export ANSIBLE_HOST_KEY_CHECKING=False
-                    echo "=== Waiting 90 seconds for EC2 to fully boot ==="
                     sleep 90
-                    echo "=== Running Ansible ==="
                     ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml
-                        
-                        
-                    
-                    
-                       
                 '''
-            
-            
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
             }
         }
 
@@ -81,38 +60,43 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS')]) {
-                    sh "docker login -u $USER -p $PASS"
+                    sh "echo $PASS | docker login -u $USER --password-stdin"
                     sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                }
-            }
-        }
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh '''
-                        EC2_IP=$(cat ec2_ip.txt)
-
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$EC2_IP << EOF
-                            kubectl apply -f deployment.yaml
-                        EOF
-                    '''
+                    sh "docker push ${DOCKER_IMAGE}:latest"
                 }
             }
         }
 
-        /*stage('Deploy to Kubernetes') {
+        stage('Update Manifest') {
             steps {
-                sh 'kubectl apply -f deployment.yaml'
-                sh 'kubectl apply -f service.yaml'
-                sh 'kubectl rollout restart deployment/node-app'
+                sh """
+                    sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" k8s/deployment.yaml
+                    git config user.email "jenkins@pipeline.com"
+                    git config user.name "Jenkins"
+                    git add k8s/deployment.yaml
+                    git commit -m "Update image tag to ${BUILD_NUMBER}"
+                    git push https://<GITHUB-TOKEN>@github.com/gowthami9999/node-app.git main
+                """
             }
         }
 
-    }*/
+        stage('Setup ArgoCD App') {
+            steps {
+                sh '''
+                    EC2_IP=$(cat ec2_ip.txt)
+                    ssh -i /var/lib/jenkins/.ssh/saikey.pem \
+                        -o StrictHostKeyChecking=no \
+                        ubuntu@$EC2_IP \
+                        "kubectl apply -f /home/ubuntu/k8s/argocd-app.yaml"
+                '''
+            }
+        }
+
+    }
 
     post {
         success {
-            echo '✅ Pipeline completed successfully! App is live!'
+            echo '✅ Pipeline completed! ArgoCD will deploy the app!'
         }
         failure {
             echo '❌ Pipeline failed! Check logs above.'
