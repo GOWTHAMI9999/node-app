@@ -86,8 +86,21 @@ pipeline {
                 }
             }
         }
-
         stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-key', keyFileVariable: 'SSH_KEY')]) {
+                    sh '''
+                        EC2_IP=$(cat ec2_ip.txt)
+
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$EC2_IP << EOF
+                            kubectl apply -f deployment.yaml
+                        EOF
+                    '''
+                }
+            }
+        }
+
+        /*stage('Deploy to Kubernetes') {
             steps {
                 sh 'kubectl apply -f deployment.yaml'
                 sh 'kubectl apply -f service.yaml'
@@ -95,7 +108,7 @@ pipeline {
             }
         }
 
-    }
+    }*/
 
     post {
         success {
