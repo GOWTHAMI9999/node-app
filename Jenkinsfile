@@ -65,9 +65,9 @@ pipeline {
                     
                        
                 '''
-            }
             
-        }
+            
+            }
         }
 
         stage('Build Docker Image') {
@@ -119,4 +119,3 @@ pipeline {
         }
     }
 }
-//test
