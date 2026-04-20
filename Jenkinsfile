@@ -36,23 +36,25 @@ pipeline {
 
         stage('Ansible - Setup Server') {
             steps {
-                sh '''
-                    echo "=== Reading EC2 IP ==="
-                    EC2_IP=$(cat ec2_ip.txt)
-
-                    echo "SSH KEY PATH: $SSH_KEY"
-
-                    echo "[app_server]" > ansible/inventory.ini
-                    echo "$EC2_IP ansible_user=ubuntu" >> ansible/inventory.ini
-
-                    export ANSIBLE_HOST_KEY_CHECKING=False
-
-                    echo "=== Waiting for EC2 ==="
-                    sleep 90
-
-                    echo "=== Running Ansible ==="
-                    ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml --private-key $SSH_KEY
-                '''
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        EC2_IP=$(cat ec2_ip.txt)
+                        echo "EC2 IP: $EC2_IP"
+                        echo "SSH KEY PATH: $SSH_KEY"
+                        echo "SSH USER: $SSH_USER"
+                        echo "[app_server]" > ansible/inventory.ini
+                        echo "$EC2_IP ansible_user=$SSH_USER" >> ansible/inventory.ini
+                        export ANSIBLE_HOST_KEY_CHECKING=False
+                        sleep 90
+                        ansible-playbook -i ansible/inventory.ini ansible/playbook.yaml --private-key $SSH_KEY
+                    '''
+                }
             }
         }
 
