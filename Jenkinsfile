@@ -79,26 +79,43 @@ pipeline {
 
         stage('Update Manifest') {
             steps {
-                sh """
-                    sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
-                    git config user.email "jenkins@pipeline.com"
-                    git config user.name "Jenkins"
-                    git add deployment.yaml
-                    git commit -m "Update image tag to ${BUILD_NUMBER}"
-                    git push https://$GIT_USER:$GIT_PASS@github.com/gowthami9999/node-app.git main
-                """
+                withCredentials([
+                usernamePassword(
+                credentialsId: 'github-creds',
+                usernameVariable: 'GIT_USER',
+                passwordVariable: 'GIT_PASS'
+            )
+        ]) {
+            sh '''
+                echo "=== Updating image tag ==="
+                sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
+
+                git config user.email "jenkins@pipeline.com"
+                git config user.name "Jenkins"
+
+                git add deployment.yaml
+                git commit -m "Update image tag to ${BUILD_NUMBER}" || echo "No changes to commit"
+
+                echo "=== Pushing to GitHub ==="
+                git push https://$GIT_USER:$GIT_PASS@github.com/gowthami9999/node-app.git main
+            '''
             }
         }
 
         stage('Setup ArgoCD App') {
-            steps {
-                sh '''
-                    EC2_IP=$(cat ec2_ip.txt)
-                    ssh -i /var/lib/jenkins/.ssh/saikey.pem \
-                        -o StrictHostKeyChecking=no \
-                        ubuntu@$EC2_IP \
+             steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )
+                ]) {
+                    sh '''
+                        EC2_IP=$(cat ec2_ip.txt)
+
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$EC2_IP \
                         "kubectl apply -f /home/ubuntu/argocd-app.yaml"
-                '''
+                    '''
             }
         }
 
