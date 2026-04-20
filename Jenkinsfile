@@ -80,10 +80,10 @@ pipeline {
         stage('Update Manifest') {
             steps {
                 sh """
-                    sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" k8s/deployment.yaml
+                    sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
                     git config user.email "jenkins@pipeline.com"
                     git config user.name "Jenkins"
-                    git add k8s/deployment.yaml
+                    git add deployment.yaml
                     git commit -m "Update image tag to ${BUILD_NUMBER}"
                     git push https://<GITHUB-TOKEN>@github.com/gowthami9999/node-app.git main
                 """
@@ -97,7 +97,7 @@ pipeline {
                     ssh -i /var/lib/jenkins/.ssh/saikey.pem \
                         -o StrictHostKeyChecking=no \
                         ubuntu@$EC2_IP \
-                        "kubectl apply -f /home/ubuntu/k8s/argocd-app.yaml"
+                        "kubectl apply -f /home/ubuntu/argocd-app.yaml"
                 '''
             }
         }
