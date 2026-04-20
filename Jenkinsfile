@@ -91,7 +91,7 @@ pipeline {
                         sed -i "s|image: gowthamireddy7/sai-node-app:.*|image: gowthamireddy7/sai-node-app:${BUILD_NUMBER}|g" deployment.yaml
                         git config user.email "jenkins@pipeline.com"
                         git config user.name "Jenkins"
-                        git add k8s/deployment.yaml
+                        git add deployment.yaml
                         git commit -m "Update image tag to ${BUILD_NUMBER}" || echo "No changes to commit"
                         echo "=== Pushing to GitHub ==="
                         git push https://$GIT_USER:$GIT_PASS@github.com/gowthami9999/node-app.git main
