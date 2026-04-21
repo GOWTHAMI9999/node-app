@@ -41,3 +41,11 @@
     - name: print kubectl version
       debug: 
         msg: "{{ kubectl_version.stdout}}"
+    - name: clone repo to ec2
+      git:
+        repo: https://github.com/gowthami9999/node-app.git
+        dest: /home/ubuntu/node-app
+        version: main
+
+    - name: apply argocd app
+      command: kubectl apply -f /home/ubuntu/node-app/argocd-app.yaml
