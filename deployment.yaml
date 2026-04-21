@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: node-app
-          image: gowthamireddy7/sai-node-app:latest
+          image: gowthamireddy7/sai-node-app:29
           ports:
             - containerPort: 3000
